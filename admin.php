@@ -286,8 +286,29 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
         echo '</ol></div>';
     }
 
-    public function html() {
-        global $conf, $ID, $auth;
+	public function html() {
+		echo '
+		<style>
+			.diff_content {
+				background: #f8f8f8;
+				padding: 10px;
+				border: 1px solid #ccc;
+				overflow-x: auto;
+			}
+			.diff-add {
+				background-color: #e6ffed;
+				color: #22863a;
+				display: block;
+			}
+			.diff-del {
+				background-color: #ffeef0;
+				color: #b31d28;
+				display: block;
+			}
+			.diff-context {
+				display: block;
+			}
+		</style>';
 
         echo '<h1>' . hsc($this->getLang('menu')) . '</h1>';
 

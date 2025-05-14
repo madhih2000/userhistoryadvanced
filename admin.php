@@ -35,6 +35,40 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 
     function handle() {}
 
+	function getSimpleDiff($old, $new) {
+		$old_lines = explode("\n", $old);
+		$new_lines = explode("\n", $new);
+	
+		// Use array_diff to find added/removed lines
+		$added = array_diff($new_lines, $old_lines);
+		$removed = array_diff($old_lines, $new_lines);
+	
+		$diff = [];
+	
+		if (!empty($added)) {
+			$diff[] = "Added lines:";
+			foreach ($added as $line) {
+				$diff[] = "+ " . hsc($line);
+			}
+		}
+	
+		if (!empty($removed)) {
+			$diff[] = "Removed lines:";
+			foreach ($removed as $line) {
+				$diff[] = "- " . hsc($line);
+			}
+		}
+	
+		return implode("\n", $diff);
+	}
+	
+	$diffText = getSimpleDiff($old, $new);
+	
+	echo '<pre class="code diff">';
+	echo hsc($diffText);  // Output the diff
+	echo '</pre>';
+	
+
     function _getChanges($user, $namespace = '') {
         global $conf;
         $changes = array();
@@ -61,105 +95,110 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
     }
 
     function _userHistory($user, $namespace = '') {
-        global $conf, $ID;
-        $changes = array_values($this->_getChanges($user, $namespace));
-        $total = count($changes);
-
-        if (isset($_REQUEST['export']) && $_REQUEST['export'] === 'csv') {
-            while (ob_get_level()) ob_end_clean();
-            if (function_exists('header_remove')) header_remove();
-
-            header('Content-Type: text/csv; charset=utf-8');
-            header('Content-Disposition: attachment; filename="user_history_' . $user . '.csv"');
-            header('Cache-Control: no-store, no-cache, must-revalidate');
-            header('Pragma: no-cache');
-            header('Expires: 0');
-
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['Date', 'Page ID', 'Summary', 'Change Type'], ',', '"', "\r\n");
-            foreach ($changes as $entry) {
-                fputcsv($out, [
-                    strftime($conf['dformat'], $entry['date']),
-                    $entry['id'],
-                    $entry['sum'],
-                    $entry['type']
-                ], ',', '"', "\r\n");
-            }
-            fclose($out);
-            exit;
-        }
-
-        $perPage = 100;
-        $start = isset($_REQUEST['start']) ? max(0, intval($_REQUEST['start'])) : 0;
-        $end = min($start + $perPage, $total);
-
-        $params = ['do' => 'admin', 'page' => $this->getPluginName()];
-        if ($namespace) $params['namespace'] = $namespace;
-
-        echo '<p><a href="' . wl($ID, $params) . '">[' . $this->getLang('back') . ']</a></p>';
-        echo '<p><a href="' . wl($ID, array_merge($params, ['user' => $user, 'export' => 'csv'])) . '">[' . $this->getLang('export_csv') . ']</a></p>';
-
-        echo '<h2>' . hsc($user) . '</h2>';
-        echo '<div class="edit_list">';
-        echo '<p class="edit_counter">' . $this->getLang('total') . ': ' . $total . '</p>';
-        echo '<ol start="' . ($start + 1) . '">';
-
-        for ($i = $start; $i < $end; $i++) {
-            $change = $changes[$i];
-            $date = strftime($conf['dformat'], $change['date']);
-            echo ($change['type'] === 'e') ? '<li class="minor">' : '<li>';
-            echo '<div class="li"><span class="date">' . $date . '</span> ';
-			echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
-            
+		global $conf, $ID;
+		$changes = array_values($this->_getChanges($user, $namespace));
+		$total = count($changes);
+	
+		if (isset($_REQUEST['export']) && $_REQUEST['export'] === 'csv') {
+			while (ob_get_level()) ob_end_clean();
+			if (function_exists('header_remove')) header_remove();
+	
+			header('Content-Type: text/csv; charset=utf-8');
+			header('Content-Disposition: attachment; filename="user_history_' . $user . '.csv"');
+			header('Cache-Control: no-store, no-cache, must-revalidate');
+			header('Pragma: no-cache');
+			header('Expires: 0');
+	
+			$out = fopen('php://output', 'w');
+			fputcsv($out, ['Date', 'Page ID', 'Summary', 'Change Type'], ',', '"', "\r\n");
+			foreach ($changes as $entry) {
+				fputcsv($out, [
+					strftime($conf['dformat'], $entry['date']),
+					$entry['id'],
+					$entry['sum'],
+					$entry['type']
+				], ',', '"', "\r\n");
+			}
+			fclose($out);
+			exit;
+		}
+	
+		$perPage = 100;
+		$start = isset($_REQUEST['start']) ? max(0, intval($_REQUEST['start'])) : 0;
+		$end = min($start + $perPage, $total);
+	
+		$params = ['do' => 'admin', 'page' => $this->getPluginName()];
+		if ($namespace) $params['namespace'] = $namespace;
+	
+		echo '<p><a href="' . wl($ID, $params) . '">[' . $this->getLang('back') . ']</a></p>';
+		echo '<p><a href="' . wl($ID, array_merge($params, ['user' => $user, 'export' => 'csv'])) . '">[' . $this->getLang('export_csv') . ']</a></p>';
+	
+		echo '<h2>' . hsc($user) . '</h2>';
+		echo '<div class="edit_list">';
+		echo '<p class="edit_counter">' . $this->getLang('total') . ': ' . $total . '</p>';
+		echo '<ol start="' . ($start + 1) . '">';
+	
+		for ($i = $start; $i < $end; $i++) {
+			$change = $changes[$i];
+			$date = strftime($conf['dformat'], $change['date']);
+			echo ($change['type'] === 'e') ? '<li class="minor">' : '<li>';
+			echo '<div class="li"><span class="date">' . $date . '</span> ';
+			
+			$revLink = wl($change['id'], "do=revisions");
 			$diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
-            $revLink  = wl($change['id'], "do=revisions");
-            echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a> ';
-			echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
-            // Load revision and previous revision
-			require_once(DOKU_INC . 'inc/diff.php');
-			require_once(DOKU_INC . 'inc/parserutils.php');
-
+			
+			// Diff link
+			echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a>';
+			// Revisions link
+			echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a>';
+			
+			// Load revision and previous revision
 			$pageid = $change['id'];
 			$rev = $change['date'];
+			
+			// Retrieve previous revision
 			$prev_rev = getRevisions($pageid, 0, 1, $rev + 1);
 			$prev_rev = $prev_rev ? $prev_rev[0] : null;
-
+	
 			if ($prev_rev !== null) {
+				// Get raw content for both revisions
 				$old = rawWiki($pageid, $prev_rev);
 				$new = rawWiki($pageid, $rev);
-				$diff = new Diff(explode("\n", $old), explode("\n", $new));
-				$dformat = new UnifiedDiffFormatter();
-				$diffText = $dformat->format($diff);
-
+				
+				// Use the custom diff method to get the differences
+				$diffText = getSimpleDiff($old, $new);
+				
 				echo '<pre class="code diff">';
-				echo hsc($diffText);
+				echo hsc($diffText);  // Output the diff in a safe format
 				echo '</pre>';
 			} else {
 				echo '<div><em>No previous revision available</em></div>';
 			}
-
+	
+			// Display page link and summary
 			echo html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
-            if (!empty($change['sum'])) {
-                echo ' – ' . hsc($change['sum']);
-            }
-            echo '</div></li>';
-        }
-
-        echo '</ol>';
-        echo '<div class="pagination">';
-        $baseParams = ['do' => 'admin', 'page' => $this->getPluginName(), 'user' => $user];
-        if ($namespace) $baseParams['namespace'] = $namespace;
-        if ($start > 0) {
-            $prev = max(0, $start - $perPage);
-            echo '<a href="' . wl($ID, array_merge($baseParams, ['start' => $prev])) . '">← Previous</a> ';
-        }
-        if ($end < $total) {
-            $next = $start + $perPage;
-            echo '<a href="' . wl($ID, array_merge($baseParams, ['start' => $next])) . '">Next →</a>';
-        }
-        echo '</div>';
-        echo '</div>';
-    }
+			if (!empty($change['sum'])) {
+				echo ' – ' . hsc($change['sum']);
+			}
+			echo '</div></li>';
+		}
+	
+		echo '</ol>';
+		echo '<div class="pagination">';
+		$baseParams = ['do' => 'admin', 'page' => $this->getPluginName(), 'user' => $user];
+		if ($namespace) $baseParams['namespace'] = $namespace;
+		if ($start > 0) {
+			$prev = max(0, $start - $perPage);
+			echo '<a href="' . wl($ID, array_merge($baseParams, ['start' => $prev])) . '">← Previous</a> ';
+		}
+		if ($end < $total) {
+			$next = $start + $perPage;
+			echo '<a href="' . wl($ID, array_merge($baseParams, ['start' => $next])) . '">Next →</a>';
+		}
+		echo '</div>';
+		echo '</div>';
+	}
+	
 
     function _userSummary($namespace = '') {
         global $auth;

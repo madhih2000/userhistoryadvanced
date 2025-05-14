@@ -114,10 +114,17 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	
 		// Handle export to CSV
 		if (isset($_REQUEST['export']) && $_REQUEST['export'] === 'csv') {
-			header('Content-Type: text/csv');
-			header('Content-Disposition: attachment; filename="user_history_'.$user.'.csv"');
+			// Prevent DokuWiki from sending any output
+			ob_end_clean(); // Clean any output buffer if exists
+
+			header('Content-Type: text/csv; charset=utf-8');
+			header('Content-Disposition: attachment; filename="user_history_' . $user . '.csv"');
+			header('Pragma: no-cache');
+			header('Expires: 0');
+
 			$out = fopen('php://output', 'w');
 			fputcsv($out, ['Date', 'Page ID', 'Summary', 'Change Type']);
+
 			foreach ($changes as $entry) {
 				fputcsv($out, [
 					strftime($conf['dformat'], $entry['date']),
@@ -126,8 +133,9 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 					$entry['type']
 				]);
 			}
+
 			fclose($out);
-			exit;
+			exit; 
 		}
 	
 		// Pagination setup
@@ -206,24 +214,75 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	}
 
 	function html() {
-		echo '<h1>' . hsc($this->getLang('menu')) . '</h1>';
-		
-		$namespace = isset($_REQUEST['namespace']) ? cleanID($_REQUEST['namespace']) : '';
-		$user = isset($_REQUEST['user']) ? $_REQUEST['user'] : '';
+		global $conf, $ID;
 	
+		echo '<h1>' . hsc($this->getLang('menu')) . '</h1>';
+	
+		// Get request values
+		$selectedNamespace = isset($_REQUEST['namespace']) ? cleanID($_REQUEST['namespace']) : '';
+		$selectedUser = isset($_REQUEST['user']) ? $_REQUEST['user'] : '';
+	
+		// Collect users and namespaces from changelog files
+		$users = [];
+		$namespaces = [];
+	
+		$changeFiles = globr($conf['metadir'], '*.changes');
+		$skip = array('_comments.changes', '_dokuwiki.changes');
+	
+		foreach ($changeFiles as $file) {
+			if (in_array(basename($file), $skip)) continue;
+			$lines = file($file);
+			foreach ($lines as $line) {
+				$change = dokuwiki\ChangeLog\ChangeLog::parseLogLine($line);
+				if (!$change) continue;
+	
+				$uname = strtolower($change['user']);
+				$users[$uname] = $change['user']; // preserve case
+	
+				// Extract namespace from page ID
+				$id = $change['id'];
+				if (strpos($id, ':') !== false) {
+					$ns = substr($id, 0, strrpos($id, ':'));
+					$namespaces[$ns] = true;
+				}
+			}
+		}
+	
+		ksort($users);
+		ksort($namespaces);
+	
+		// Filter form
 		echo '<form action="" method="GET">';
 		echo '<input type="hidden" name="do" value="admin" />';
-		echo '<input type="hidden" name="page" value="'.$this->getPluginName().'" />';
-		echo '<label>User: <input type="text" name="user" value="'.hsc($user).'" /></label> ';
-		echo '<label>Namespace: <input type="text" name="namespace" value="'.hsc($namespace).'" /></label> ';
+		echo '<input type="hidden" name="page" value="' . $this->getPluginName() . '" />';
+	
+		// User dropdown
+		echo '<label>User: <select name="user">';
+		echo '<option value="">-- Select User --</option>';
+		foreach ($users as $key => $name) {
+			$selected = ($selectedUser == $name) ? 'selected' : '';
+			echo '<option value="' . hsc($name) . '" ' . $selected . '>' . hsc($name) . '</option>';
+		}
+		echo '</select></label> ';
+	
+		// Namespace dropdown
+		echo '<label>Namespace: <select name="namespace">';
+		echo '<option value="">-- All Namespaces --</option>';
+		foreach (array_keys($namespaces) as $ns) {
+			$selected = ($selectedNamespace == $ns) ? 'selected' : '';
+			echo '<option value="' . hsc($ns) . '" ' . $selected . '>' . hsc($ns) . '</option>';
+		}
+		echo '</select></label> ';
+	
 		echo '<input type="submit" value="Filter" />';
 		echo '</form>';
 	
-		if ($user) {
-			$this->_userHistory($user, $namespace);
+		// Show results
+		if ($selectedUser) {
+			$this->_userHistory($selectedUser, $selectedNamespace);
 		} else {
-			$this->_userSummary($namespace);
+			$this->_userSummary($selectedNamespace);
 		}
 	}
- 
+	
 }

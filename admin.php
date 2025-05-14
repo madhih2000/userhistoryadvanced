@@ -1,8 +1,11 @@
 <?php
 
+require_once(DOKU_INC . 'inc/DifferenceEngine.php');
+require_once(DOKU_INC . 'inc/Diff.php');
+require_once(DOKU_INC . 'inc/Diff/UnifiedDiffFormatter.php');
+
 use dokuwiki\ChangeLog\ChangeLog;
 use dokuwiki\Utf8\PhpString;
-use dokuwiki\PageRevision;
 
 require_once(DOKU_INC . 'inc/DifferenceEngine.php');
 
@@ -35,9 +38,8 @@ function cmp($a, $b) {
 class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 
 	private function _getPreviousRevisionTimestamp($pageId, $currentTs) {
-		$pageRev = new PageRevision($pageId);
-		$revs = $pageRev->getRevisions(0, 0);
-		foreach ($revs as $ts) {
+		$revisions = getRevisions($pageId, 0, 0); // get all revisions, newest first
+		foreach ($revisions as $ts) {
 			if ($ts < $currentTs) {
 				return $ts;
 			}

@@ -114,17 +114,33 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	
 		// Handle export to CSV
 		if (isset($_REQUEST['export']) && $_REQUEST['export'] === 'csv') {
-			// Prevent DokuWiki from sending any output
-			ob_end_clean(); // Clean any output buffer if exists
+			// Stop DokuWiki output buffering and clean any previous output
+			while (ob_get_level()) {
+				ob_end_clean();
+			}
 
+			// Remove headers already set by DokuWiki (optional but safer)
+			if (function_exists('header_remove')) {
+				header_remove();
+			}
+
+			// Set headers to force download
 			header('Content-Type: text/csv; charset=utf-8');
 			header('Content-Disposition: attachment; filename="user_history_' . $user . '.csv"');
+			header('Cache-Control: no-store, no-cache, must-revalidate');
 			header('Pragma: no-cache');
 			header('Expires: 0');
 
+			// Open output stream
 			$out = fopen('php://output', 'w');
+			if ($out === false) {
+				die('Could not open output stream.');
+			}
+
+			// Write CSV headers
 			fputcsv($out, ['Date', 'Page ID', 'Summary', 'Change Type']);
 
+			// Write each row
 			foreach ($changes as $entry) {
 				fputcsv($out, [
 					strftime($conf['dformat'], $entry['date']),
@@ -135,7 +151,7 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 			}
 
 			fclose($out);
-			exit; 
+			exit; // Ensure no further output
 		}
 	
 		// Pagination setup

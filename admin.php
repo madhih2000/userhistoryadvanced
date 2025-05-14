@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
 
-use Jfcherng\Diff\Diff;
+use Jfcherng\Diff\Differ;
 use Jfcherng\Diff\Renderer\Html\SideBySide;
  
 /**
@@ -178,7 +178,7 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 					'ignoreCase' => true,
 					'ignoreWhitespace' => true,
 				];
-				$diff = new Diff($previousContent, $currentContent, $diffOptions);
+				$diff = new Differ($previousContent, $currentContent, $diffOptions);
 	
 				$rendererOptions = [
 					'detailLevel' => 'line',

@@ -109,11 +109,36 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
             $date = strftime($conf['dformat'], $change['date']);
             echo ($change['type'] === 'e') ? '<li class="minor">' : '<li>';
             echo '<div class="li"><span class="date">' . $date . '</span> ';
-            $diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
+			echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
+            
+			$diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
             $revLink  = wl($change['id'], "do=revisions");
             echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a> ';
-            echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
-            echo html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
+			echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
+            // Load revision and previous revision
+			require_once(DOKU_INC . 'inc/diff.php');
+			require_once(DOKU_INC . 'inc/parserutils.php');
+
+			$pageid = $change['id'];
+			$rev = $change['date'];
+			$prev_rev = getRevisions($pageid, 0, 1, $rev + 1);
+			$prev_rev = $prev_rev ? $prev_rev[0] : null;
+
+			if ($prev_rev !== null) {
+				$old = rawWiki($pageid, $prev_rev);
+				$new = rawWiki($pageid, $rev);
+				$diff = new Diff(explode("\n", $old), explode("\n", $new));
+				$dformat = new UnifiedDiffFormatter();
+				$diffText = $dformat->format($diff);
+
+				echo '<pre class="code diff">';
+				echo hsc($diffText);
+				echo '</pre>';
+			} else {
+				echo '<div><em>No previous revision available</em></div>';
+			}
+
+			echo html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
             if (!empty($change['sum'])) {
                 echo ' – ' . hsc($change['sum']);
             }

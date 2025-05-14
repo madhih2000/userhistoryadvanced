@@ -179,7 +179,7 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 					'ignoreCase' => true,
 					'ignoreWhitespace' => true,
 				];
-				$diff = new Differ($previousContent, $currentContent, $diffOptions);
+				$diff = new Differ(explode("\n", $previousContent), explode("\n", $currentContent), $diffOptions);
 	
 				$rendererOptions = [
 					'detailLevel' => 'line',

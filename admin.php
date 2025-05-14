@@ -6,7 +6,7 @@
  */
 
 
- function globr($dir, $pattern) {
+function globr($dir, $pattern) {
 	$files = glob($dir . '/' . $pattern);
 	$subdirs = glob($dir . '/*', GLOB_ONLYDIR);
 	if (!empty($subdirs)) {

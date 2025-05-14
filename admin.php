@@ -1,5 +1,10 @@
 <?php
 
+use dokuwiki\ChangeLog\ChangeLog;
+use dokuwiki\Utf8\PhpString;
+
+require_once(DOKU_INC . 'inc/DifferenceEngine.php');
+
 /**
  * All DokuWiki plugins to extend the admin function
  * need to inherit from this class
@@ -27,6 +32,30 @@ function cmp($a, $b) {
 }
 
 class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
+
+	private function _getPreviousRevisionTimestamp($pageId, $currentTs) {
+		$revs = getRevisions($pageId, 0, 0);
+		foreach ($revs as $ts) {
+			if ($ts < $currentTs) {
+				return $ts;
+			}
+		}
+		return null;
+	}
+	
+	private function _showDiffForChange($pageId, $rev1, $rev2 = null) {
+		$file1 = wikiFN($pageId, $rev1);
+		if (!file_exists($file1)) return '';
+	
+		$text1 = io_readFile($file1, false);
+		$text2 = $rev2 ? io_readFile(wikiFN($pageId, $rev2), false) : rawWiki($pageId);
+	
+		$diff = new Diff(explode("\n", $text1), explode("\n", $text2));
+		$formatter = new UnifiedDiffFormatter();
+		return '<div class="diff_content"><pre>' . hsc($formatter->format($diff)) . '</pre></div>';
+	}
+
+
 
     public function __construct() {
         $this->setupLocale();
@@ -132,20 +161,29 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
         echo '<p class="edit_counter">' . $this->getLang('total') . ': ' . $total . '</p>';
         echo '<ol start="' . ($start + 1) . '">';
 
-        for ($i = $start; $i < $end; $i++) {
-            $change = $changes[$i];
-            echo '<li class="' . ($change['type'] === 'e' ? 'minor' : '') . '">';
-            echo '<div class="li"><span class="date">' . strftime($conf['dformat'], $change['date']) . '</span> ';
-            $diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
-            $revLink  = wl($change['id'], "do=revisions");
-            echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a> ';
-            echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
-            echo $change['id'] . ' – ' . html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
-            if (!empty($change['sum'])) {
-                echo ' – ' . hsc($change['sum']);
-            }
-            echo '</div></li>';
-        }
+		for ($i = $start; $i < $end; $i++) {
+			$change = $changes[$i];
+			echo '<li class="' . ($change['type'] === 'e' ? 'minor' : '') . '">';
+			echo '<div class="li"><span class="date">' . strftime($conf['dformat'], $change['date']) . '</span> ';
+			$diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
+			$revLink  = wl($change['id'], "do=revisions");
+			echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a> ';
+			echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
+			echo $change['id'] . ' – ' . html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
+			if (!empty($change['sum'])) {
+				echo ' – ' . hsc($change['sum']);
+			}
+		
+			// Show inline diff
+			$prevRev = $this->_getPreviousRevisionTimestamp($change['id'], $change['date']);
+			if ($prevRev) {
+				echo $this->_showDiffForChange($change['id'], $prevRev, $change['date']);
+			} else {
+				echo '<div class="diff_content"><em>No previous revision available for diff.</em></div>';
+			}
+		
+			echo '</div></li>';
+		}
 
         echo '</ol>';
         echo '<div class="pagination">';

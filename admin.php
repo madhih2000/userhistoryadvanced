@@ -4,9 +4,9 @@
  * All DokuWiki plugins to extend the admin function
  * need to inherit from this class
  */
-class admin_plugin_userhistory extends DokuWiki_Admin_Plugin {
+class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 
-	function admin_plugin_userhistory ( ) {
+	function admin_plugin_userhistoryadvanced ( ) {
         $this->setupLocale ( );
 	}
  

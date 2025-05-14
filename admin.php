@@ -286,7 +286,9 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
         echo '</ol></div>';
     }
 
-	public function html() {
+    public function html() {
+		global $conf, $ID, $auth;
+
 		echo '
 		<style>
 			.diff_content {

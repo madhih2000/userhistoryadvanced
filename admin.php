@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../../../vendor/autoload.php';
+require_once '/var/www/html/dokuwiki/lib/plugins/php-diff/src/Differ.php';
 
 use Jfcherng\Diff\Differ;
 use Jfcherng\Diff\Renderer\Html\SideBySide;

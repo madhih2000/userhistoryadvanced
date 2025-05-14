@@ -1,13 +1,12 @@
 <?php
 
-require_once(DOKU_INC . 'inc/DifferenceEngine.php');
-require_once(DOKU_INC . 'inc/Diff.php');
-require_once(DOKU_INC . 'inc/Diff/UnifiedDiffFormatter.php');
+
 
 use dokuwiki\ChangeLog\ChangeLog;
 use dokuwiki\Utf8\PhpString;
 
-require_once(DOKU_INC . 'inc/DifferenceEngine.php');
+use dokuwiki\Diff\Diff;
+use dokuwiki\Diff\UnifiedDiffFormatter;
 
 /**
  * All DokuWiki plugins to extend the admin function

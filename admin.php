@@ -5,8 +5,8 @@
 use dokuwiki\ChangeLog\ChangeLog;
 use dokuwiki\Utf8\PhpString;
 
-use dokuwiki\Diff\Diff;
-use dokuwiki\Diff\UnifiedDiffFormatter;
+// use dokuwiki\Diff\Diff;
+// use dokuwiki\Diff\UnifiedDiffFormatter;
 
 /**
  * All DokuWiki plugins to extend the admin function

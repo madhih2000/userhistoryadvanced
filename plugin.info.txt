@@ -1,0 +1,7 @@
+base   userhistoryadvanced
+author DSA3101 Admin
+email  e0684508@u.nus.edu
+date   2025-05-14
+name   User History Manager Grading Plugin
+desc   View page changelog per user
+

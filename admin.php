@@ -4,6 +4,32 @@
  * All DokuWiki plugins to extend the admin function
  * need to inherit from this class
  */
+
+
+ function globr($dir, $pattern) {
+	$files = glob($dir . '/' . $pattern);
+	$subdirs = glob($dir . '/*', GLOB_ONLYDIR);
+	if (!empty($subdirs)) {
+		foreach ($subdirs as $subdir) {
+			$subfiles = globr($subdir, $pattern);
+			if (!empty($subfiles) && !empty($files)) {
+				$files = array_merge($files, $subfiles);
+			}
+		}
+	}
+	return $files;
+}
+
+// Original sorting logic preserved
+function cmp($a, $b) {
+	$time1 = $a['date'];
+	$time2 = $b['date'];
+	if ($time1 == $time2) {
+		return 0;
+	}
+	return ($time1 < $time2 ? 1 : -1); // descending
+}
+
 class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 
 	function admin_plugin_userhistoryadvanced ( ) {
@@ -42,38 +68,22 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 			echo ( '<li><a href = "'.$href.'">'.$nick.' - '.$name.'</li>' );
 		}
 		echo ( '</ol></div>' );
-	}	
-	
+	}
+
+
 	function _getChanges($user, $namespace = '') {
 		global $conf;
-	
-		// Original globr logic preserved as nested function
-		function globr($dir, $pattern) {
-			$files = glob($dir . '/' . $pattern);
-			$subdirs = glob($dir . '/*', GLOB_ONLYDIR);
-			if (!empty($subdirs)) {
-				foreach ($subdirs as $subdir) {
-					$subfiles = globr($subdir, $pattern);
-					if (!empty($subfiles) && !empty($files)) {
-						$files = array_merge($files, $subfiles);
-					}
-				}
-			}
-			return $files;
-		}
 	
 		$changes = array();
 		$alllist = globr($conf['metadir'], '*.changes');
 		$skip = array('_comments.changes', '_dokuwiki.changes');
 	
-		for ($i = 0; $i < count($alllist); $i++) {
-			$fullname = $alllist[$i];
+		foreach ($alllist as $fullname) {
 			$filepart = basename($fullname);
 			if (in_array($filepart, $skip)) continue;
 	
-			$f = file($fullname);
-			for ($j = 0; $j < count($f); $j++) {
-				$line = $f[$j];
+			$lines = file($fullname);
+			foreach ($lines as $line) {
 				$change = dokuwiki\ChangeLog\ChangeLog::parseLogLine($line);
 				if (!$change) continue;
 	
@@ -88,16 +98,6 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	
 				$changes[] = $change;
 			}
-		}
-	
-		// Original sorting logic preserved
-		function cmp($a, $b) {
-			$time1 = $a['date'];
-			$time2 = $b['date'];
-			if ($time1 == $time2) {
-				return 0;
-			}
-			return ($time1 < $time2 ? 1 : -1); // descending
 		}
 	
 		uasort($changes, 'cmp');

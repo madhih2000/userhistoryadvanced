@@ -2,6 +2,7 @@
 
 use dokuwiki\ChangeLog\ChangeLog;
 use dokuwiki\Utf8\PhpString;
+use dokuwiki\PageRevision;
 
 require_once(DOKU_INC . 'inc/DifferenceEngine.php');
 
@@ -34,7 +35,8 @@ function cmp($a, $b) {
 class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 
 	private function _getPreviousRevisionTimestamp($pageId, $currentTs) {
-		$revs = getRevisions($pageId, 0, 0);
+		$pageRev = new PageRevision($pageId);
+		$revs = $pageRev->getRevisions(0, 0);
 		foreach ($revs as $ts) {
 			if ($ts < $currentTs) {
 				return $ts;

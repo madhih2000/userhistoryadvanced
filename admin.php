@@ -1,4 +1,12 @@
 <?php
+
+require_once __DIR__ . '/php-diff/src/Differ.php';
+require_once __DIR__ . '/php-diff/src/Renderer/AbstractRenderer.php';
+require_once __DIR__ . '/php-diff/src/Renderer/Html/AbstractHtml.php';
+require_once __DIR__ . '/php-diff/src/Renderer/Html/SideBySide.php';
+
+use Jfcherng\Diff\Diff;
+use Jfcherng\Diff\Renderer\Html\SideBySide;
  
 /**
  * All DokuWiki plugins to extend the admin function
@@ -114,20 +122,14 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	
 		if (isset($_REQUEST['export']) && $_REQUEST['export'] === 'csv') {
 			while (ob_get_level()) ob_end_clean();
-		
-			// Clean up any previously set headers
 			if (function_exists('header_remove')) header_remove();
-		
 			header('Content-Type: text/csv; charset=utf-8');
 			header('Content-Disposition: attachment; filename="user_history_' . $user . '.csv"');
 			header('Cache-Control: no-store, no-cache, must-revalidate');
 			header('Pragma: no-cache');
 			header('Expires: 0');
-		
 			$out = fopen('php://output', 'w');
 			fputcsv($out, ['Date', 'Page ID', 'Summary', 'Change Type'], ',', '"', "\r\n");
-		
-			// Write CSV data rows
 			foreach ($changes as $entry) {
 				fputcsv($out, [
 					strftime($conf['dformat'], $entry['date']),
@@ -136,18 +138,15 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 					$entry['type']
 				], ',', '"', "\r\n");
 			}
-		
 			fclose($out);
-			exit; // Ensure no further processing
-			return false; // Prevent DokuWiki from rendering page
+			exit;
+			return false;
 		}
 	
-		// Pagination setup
 		$perPage = 100;
 		$start = isset($_REQUEST['start']) ? max(0, intval($_REQUEST['start'])) : 0;
 		$end = min($start + $perPage, $total);
 	
-		// Back and Export Links
 		$params = ['do' => 'admin', 'page' => $this->getPluginName()];
 		if ($namespace) $params['namespace'] = $namespace;
 	
@@ -159,31 +158,76 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 		echo '<p class="edit_counter">' . $this->getLang('total') . ': ' . $total . '</p>';
 		echo '<ol start="' . ($start + 1) . '">';
 	
+		$previousContent = null;
+		$previousId = null;
+	
 		for ($i = $start; $i < $end; $i++) {
 			$change = $changes[$i];
-			$date = strftime($conf['dformat'], $change['date']);
-			echo ($change['type'] === 'e') ? '<li class="minor">' : '<li>';
-			echo '<div class="li"><span class="date">' . $date . '</span> ';
+			$currentRevisionFile = DOKU_PATH . 'data/pages/' . str_replace(':', '/', $change['id']) . '.txt.gz,' . $change['date'];
+			$currentContent = '';
 	
-			$diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
-			$revLink  = wl($change['id'], "do=revisions");
-	
-			echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a> ';
-			echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
-			echo $change['id'] . ' – ' . html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
-			if (!empty($change['sum'])) {
-				echo ' – ' . hsc($change['sum']);
+			if (file_exists($currentRevisionFile)) {
+				if ($gz = gzopen($currentRevisionFile, 'rb')) {
+					while (!gzeof($gz)) {
+						$currentContent .= gzread($gz, 8192);
+					}
+					gzclose($gz);
+				}
 			}
-			echo '</div></li>';
+	
+			if ($previousContent !== null && $previousId === $change['id']) {
+				$diffOptions = [
+					'context' => 1,
+					'ignoreCase' => true,
+					'ignoreWhitespace' => true,
+				];
+				$diff = new Diff($previousContent, $currentContent, $diffOptions);
+	
+				$rendererOptions = [
+					'detailLevel' => 'line',
+					'lineNumbers' => true,
+					'separateBlock' => true,
+					'showHeader' => false,
+					'wrapperClasses' => ['user-history-diff'],
+				];
+				$renderer = new SideBySide($rendererOptions);
+				$htmlDiff = $diff->render($renderer);
+	
+				echo '<li class="' . ($change['type'] === 'e' ? 'minor' : '') . '">';
+				echo '<div class="li"><span class="date">' . strftime($conf['dformat'], $change['date']) . '</span> ';
+				$diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
+				$revLink  = wl($change['id'], "do=revisions");
+				echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a> ';
+				echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
+				echo $change['id'] . ' – ' . html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
+				if (!empty($change['sum'])) {
+					echo ' – ' . hsc($change['sum']);
+				}
+				echo '</div>';
+				echo '<div class="diff-output">' . $htmlDiff . '</div>';
+				echo '</li>';
+			} else {
+				echo '<li class="' . ($change['type'] === 'e' ? 'minor' : '') . '">';
+				echo '<div class="li"><span class="date">' . strftime($conf['dformat'], $change['date']) . '</span> ';
+				$diffLink = wl($change['id'], "do=diff&rev=" . $change['date']);
+				$revLink  = wl($change['id'], "do=revisions");
+				echo '<a class="diff_link" href="' . $diffLink . '"><img src="' . DOKU_BASE . 'lib/images/diff.png" alt="diff" title="diff" /></a> ';
+				echo '<a class="revisions_link" href="' . $revLink . '"><img src="' . DOKU_BASE . 'lib/images/history.png" alt="history" title="history" /></a> ';
+				echo $change['id'] . ' – ' . html_wikilink(':' . $change['id'], $conf['useheading'] ? NULL : $change['id']);
+				if (!empty($change['sum'])) {
+					echo ' – ' . hsc($change['sum']);
+				}
+				echo '</div></li>';
+			}
+	
+			$previousContent = $currentContent;
+			$previousId = $change['id'];
 		}
 	
 		echo '</ol>';
-	
-		// Pagination navigation
 		echo '<div class="pagination">';
 		$baseParams = ['do' => 'admin', 'page' => $this->getPluginName(), 'user' => $user];
 		if ($namespace) $baseParams['namespace'] = $namespace;
-	
 		if ($start > 0) {
 			$prev = max(0, $start - $perPage);
 			echo '<a href="' . wl($ID, array_merge($baseParams, ['start' => $prev])) . '">← Previous</a> ';
@@ -193,7 +237,6 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 			echo '<a href="' . wl($ID, array_merge($baseParams, ['start' => $next])) . '">Next →</a>';
 		}
 		echo '</div>';
-	
 		echo '</div>';
 	}
 

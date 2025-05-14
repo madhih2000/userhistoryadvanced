@@ -1,10 +1,6 @@
 <?php
 
-require_once __DIR__ . '/../php-diff/src/Differ.php';
-require_once __DIR__ . '/../php-diff/src/Renderer/AbstractRenderer.php';
-require_once '/var/www/html/dokuwiki/lib/plugins/php-diff/src/Renderer/RendererInterface.php';
-require_once __DIR__ . '/../php-diff/src/Renderer/Html/AbstractHtml.php';
-require_once __DIR__ . '/../php-diff/src/Renderer/Html/SideBySide.php';
+require_once __DIR__ . '/../../../vendor/autoload.php';
 
 use Jfcherng\Diff\Diff;
 use Jfcherng\Diff\Renderer\Html\SideBySide;

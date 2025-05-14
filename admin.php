@@ -39,32 +39,37 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	private function _getPreviousRevisionTimestamp($pageId, $currentTs) {
 		global $conf;
 	
-		// Get the attic directory path
+		// Replace colon with a directory separator for namespaces
 		$atticDir = $conf['olddir'];
-		$fileBase = str_replace(':', '/', $pageId);
-		$pattern = $atticDir . '/' . $fileBase . '.*\.txt(?:\.gz)?';
+		$filePath = str_replace(':', '/', $pageId);
 	
-		// Find all revision files
-		$revisions = glob($pattern);
+		// Look for .txt and .txt.gz files
+		$pattern = $atticDir . '/' . $filePath . '.*\.txt*';  // match .txt and .txt.gz
+	
+		// Get all matching files in the attic
+		$files = glob($pattern);
 		$timestamps = [];
 	
-		foreach ($revisions as $revFile) {
-			if (preg_match('/\.([0-9]+)\.txt(?:\.gz)?$/', $revFile, $matches)) {
+		// Loop through the files to extract timestamps
+		foreach ($files as $file) {
+			// Match filenames like "start.1747203282.txt.gz"
+			if (preg_match('/\.(\d+)\.txt(?:\.gz)?$/', $file, $matches)) {
+				// Extract the timestamp from the filename
 				$timestamps[] = (int)$matches[1];
 			}
 		}
 	
-		// Sort descending
+		// Sort timestamps in descending order (latest first)
 		rsort($timestamps);
 	
-		// Find the previous timestamp before current one
+		// Compare the timestamps and return the previous one
 		foreach ($timestamps as $ts) {
 			if ($ts < $currentTs) {
-				return $ts;
+				return $ts; // return the previous revision timestamp
 			}
 		}
 	
-		return null;
+		return null; // no previous revision found
 	}
 
 	private function _getAllRevisions($pageId) {

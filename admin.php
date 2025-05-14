@@ -112,46 +112,34 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 		$changes = array_values($this->_getChanges($user, $namespace));
 		$total = count($changes);
 	
-		// Handle export to CSV
 		if (isset($_REQUEST['export']) && $_REQUEST['export'] === 'csv') {
-			// Stop DokuWiki output buffering and clean any previous output
-			while (ob_get_level()) {
-				ob_end_clean();
-			}
-
-			// Remove headers already set by DokuWiki (optional but safer)
-			if (function_exists('header_remove')) {
-				header_remove();
-			}
-
-			// Set headers to force download
+			while (ob_get_level()) ob_end_clean();
+		
+			// Clean up any previously set headers
+			if (function_exists('header_remove')) header_remove();
+		
 			header('Content-Type: text/csv; charset=utf-8');
 			header('Content-Disposition: attachment; filename="user_history_' . $user . '.csv"');
 			header('Cache-Control: no-store, no-cache, must-revalidate');
 			header('Pragma: no-cache');
 			header('Expires: 0');
-
-			// Open output stream
+		
 			$out = fopen('php://output', 'w');
-			if ($out === false) {
-				die('Could not open output stream.');
-			}
-
-			// Write CSV headers
-			fputcsv($out, ['Date', 'Page ID', 'Summary', 'Change Type']);
-
-			// Write each row
+			fputcsv($out, ['Date', 'Page ID', 'Summary', 'Change Type'], ',', '"', "\r\n");
+		
+			// Write CSV data rows
 			foreach ($changes as $entry) {
 				fputcsv($out, [
 					strftime($conf['dformat'], $entry['date']),
 					$entry['id'],
 					$entry['sum'],
 					$entry['type']
-				]);
+				], ',', '"', "\r\n");
 			}
-
+		
 			fclose($out);
-			exit; // Ensure no further output
+			exit; // Ensure no further processing
+			return false; // Prevent DokuWiki from rendering page
 		}
 	
 		// Pagination setup

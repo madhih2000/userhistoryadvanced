@@ -35,16 +35,58 @@ function cmp($a, $b) {
 }
 
 class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
-
+	
 	private function _getPreviousRevisionTimestamp($pageId, $currentTs) {
-		$revisions = getRevisions($pageId, 0, 0); // get all revisions, newest first
-		foreach ($revisions as $ts) {
+		global $conf;
+	
+		// Get the attic directory path
+		$atticDir = $conf['olddir'];
+		$fileBase = str_replace(':', '/', $pageId);
+		$pattern = $atticDir . '/' . $fileBase . '.*\.txt(?:\.gz)?';
+	
+		// Find all revision files
+		$revisions = glob($pattern);
+		$timestamps = [];
+	
+		foreach ($revisions as $revFile) {
+			if (preg_match('/\.([0-9]+)\.txt(?:\.gz)?$/', $revFile, $matches)) {
+				$timestamps[] = (int)$matches[1];
+			}
+		}
+	
+		// Sort descending
+		rsort($timestamps);
+	
+		// Find the previous timestamp before current one
+		foreach ($timestamps as $ts) {
 			if ($ts < $currentTs) {
 				return $ts;
 			}
 		}
+	
 		return null;
 	}
+
+	private function _getAllRevisions($pageId) {
+		global $conf;
+	
+		$atticDir = $conf['olddir'];
+		$fileBase = str_replace(':', '/', $pageId);
+		$pattern = $atticDir . '/' . $fileBase . '.*\.txt(?:\.gz)?';
+	
+		$revisions = glob($pattern);
+		$timestamps = [];
+	
+		foreach ($revisions as $revFile) {
+			if (preg_match('/\.([0-9]+)\.txt(?:\.gz)?$/', $revFile, $matches)) {
+				$timestamps[] = (int)$matches[1];
+			}
+		}
+	
+		sort($timestamps); // Ascending order
+		return $timestamps;
+	}
+	
 	
 	private function _showDiffForChange($pageId, $rev1, $rev2 = null) {
 		$file1 = wikiFN($pageId, $rev1);

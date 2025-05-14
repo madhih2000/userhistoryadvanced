@@ -1,12 +1,7 @@
 <?php
 
-
-
 use dokuwiki\ChangeLog\ChangeLog;
 use dokuwiki\Utf8\PhpString;
-
-// use dokuwiki\Diff\Diff;
-// use dokuwiki\Diff\UnifiedDiffFormatter;
 
 /**
  * All DokuWiki plugins to extend the admin function
@@ -102,7 +97,21 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	
 		$diff = new Diff(explode("\n", $text1), explode("\n", $text2));
 		$formatter = new UnifiedDiffFormatter();
-		return '<div class="diff_content"><pre>' . hsc($formatter->format($diff)) . '</pre></div>';
+		$rawDiff = explode("\n", $formatter->format($diff));
+		$coloredLines = [];
+
+		foreach ($rawDiff as $line) {
+			$escapedLine = hsc($line);
+			if (strpos($line, '+') === 0 && strpos($line, '+++') !== 0) {
+				$coloredLines[] = '<span class="diff-add">' . $escapedLine . '</span>';
+			} elseif (strpos($line, '-') === 0 && strpos($line, '---') !== 0) {
+				$coloredLines[] = '<span class="diff-del">' . $escapedLine . '</span>';
+			} else {
+				$coloredLines[] = '<span class="diff-context">' . $escapedLine . '</span>';
+			}
+		}
+
+		return '<div class="diff_content"><pre>' . implode("\n", $coloredLines) . '</pre></div>';
 	}
 
 

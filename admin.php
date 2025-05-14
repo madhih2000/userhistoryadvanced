@@ -218,20 +218,23 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 	}
 
 	function html() {
-		global $conf, $ID;
+		global $conf, $ID, $auth;
 	
 		echo '<h1>' . hsc($this->getLang('menu')) . '</h1>';
 	
-		// Get request values
+		// Get selected filters
 		$selectedNamespace = isset($_REQUEST['namespace']) ? cleanID($_REQUEST['namespace']) : '';
 		$selectedUser = isset($_REQUEST['user']) ? $_REQUEST['user'] : '';
 	
-		// Collect users and namespaces from changelog files
-		$users = [];
+		// Gather all registered users
+		$allUsers = $auth->retrieveUsers();
+		$users = []; // Format: [lower_username => ['username' => original, 'name' => ..., 'hasHistory' => bool]]
+		$usersWithHistory = [];
 		$namespaces = [];
 	
+		// Scan .changes files to find users with history + namespaces
 		$changeFiles = globr($conf['metadir'], '*.changes');
-		$skip = array('_comments.changes', '_dokuwiki.changes');
+		$skip = ['_comments.changes', '_dokuwiki.changes'];
 	
 		foreach ($changeFiles as $file) {
 			if (in_array(basename($file), $skip)) continue;
@@ -241,15 +244,23 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 				if (!$change) continue;
 	
 				$uname = strtolower($change['user']);
-				$users[$uname] = $change['user']; // preserve case
+				$usersWithHistory[$uname] = true;
 	
-				// Extract namespace from page ID
-				$id = $change['id'];
-				if (strpos($id, ':') !== false) {
-					$ns = substr($id, 0, strrpos($id, ':'));
+				if (strpos($change['id'], ':') !== false) {
+					$ns = substr($change['id'], 0, strrpos($change['id'], ':'));
 					$namespaces[$ns] = true;
 				}
 			}
+		}
+	
+		// Build final user list: include all users, mark those with history
+		foreach ($allUsers as $username => $info) {
+			$lower = strtolower($username);
+			$users[$lower] = [
+				'username' => $username,
+				'name' => $info['name'],
+				'hasHistory' => isset($usersWithHistory[$lower])
+			];
 		}
 	
 		ksort($users);
@@ -263,9 +274,13 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 		// User dropdown
 		echo '<label>User: <select name="user">';
 		echo '<option value="">-- Select User --</option>';
-		foreach ($users as $key => $name) {
-			$selected = ($selectedUser == $name) ? 'selected' : '';
-			echo '<option value="' . hsc($name) . '" ' . $selected . '>' . hsc($name) . '</option>';
+		foreach ($users as $data) {
+			$selected = ($selectedUser == $data['username']) ? 'selected' : '';
+			$label = hsc($data['username']) . ' - ' . hsc($data['name']);
+			if ($data['hasHistory']) {
+				$label .= ' *'; // Highlight users with history
+			}
+			echo '<option value="' . hsc($data['username']) . '" ' . $selected . '>' . $label . '</option>';
 		}
 		echo '</select></label> ';
 	
@@ -287,6 +302,6 @@ class admin_plugin_userhistoryadvanced extends DokuWiki_Admin_Plugin {
 		} else {
 			$this->_userSummary($selectedNamespace);
 		}
-	}
+	}	
 	
 }
